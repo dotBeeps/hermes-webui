@@ -1163,19 +1163,11 @@ const _THEMES=[
   {name:'Dark', value:'dark', colors:['#0D0D1A','#141425','#FFD700']},
   {name:'System', value:'system', colors:['#FEFCF7','#0D0D1A','#B8860B']},
 ];
-const _SKINS=[
-  {name:'Default',  colors:['#FFD700','#FFBF00','#CD7F32']},
-  {name:'Ares',     colors:['#FF4444','#CC3333','#992222']},
-  {name:'Mono',     colors:['#CCCCCC','#999999','#666666']},
-  {name:'Slate',    colors:['#334155','#475569','#64748b']},
-  {name:'Poseidon', colors:['#0EA5E9','#0284C7','#0369A1']},
-  {name:'Sisyphus', colors:['#A78BFA','#8B5CF6','#7C3AED']},
-  {name:'Charizard',colors:['#FB923C','#F97316','#EA580C']},
-  {name:'Sienna',   colors:['#D97757','#C06A49','#9A523A']},
-  {name:'Nous',     colors:['#4682B4','#3A6E9A','#2C5F88']},
+let _SKINS = [
+  {name:'Default', slug:'default', colors:['#FFD700','#FFBF00','#CD7F32']},
 ];
 const _VALID_THEMES=new Set((_THEMES||[]).map(t=>t.value));
-const _VALID_SKINS=new Set((_SKINS||[]).map(s=>s.name.toLowerCase()));
+let _VALID_SKINS=new Set(['default']);
 const _LEGACY_THEME_MAP={
   slate:{theme:'dark',skin:'slate'},
   solarized:{theme:'dark',skin:'poseidon'},
@@ -1185,6 +1177,33 @@ const _LEGACY_THEME_MAP={
 };
 let _systemThemeMq=null;
 let _onSystemThemeChange=null;
+
+async function _loadSkins(){
+  try{
+    const payload=await api('/api/skins');
+    const skins=Array.isArray(payload&&payload.skins)?payload.skins:[];
+    if(skins.length){
+      _SKINS=skins.map(s=>({
+        name:String(s.name||s.slug||'Default'),
+        slug:String(s.slug||s.name||'default').toLowerCase(),
+        colors:Array.isArray(s.colors)?s.colors:(Array.isArray(s.preview)?s.preview:['#888888','#777777','#666666']),
+        variants:(s.variants&&typeof s.variants==='object')?s.variants:null
+      }));
+      _VALID_SKINS=new Set(_SKINS.map(s=>s.slug));
+    }
+    if(payload&&payload.css){
+      let style=document.getElementById('dynamic-skin-css');
+      if(!style){
+        style=document.createElement('style');
+        style.id='dynamic-skin-css';
+        document.head.appendChild(style);
+      }
+      style.textContent=String(payload.css);
+    }
+  }catch(e){
+    console.warn('[settings] failed to load skin registry',e);
+  }
+}
 
 function _normalizeAppearance(theme,skin){
   const rawTheme=typeof theme==='string'?theme.trim().toLowerCase():'';
@@ -1273,6 +1292,7 @@ function _pickTheme(name){
   if(hidden) hidden.value=appearance.theme;
   const skinHidden=$('settingsSkin');
   if(skinHidden) skinHidden.value=appearance.skin;
+  if(typeof _syncEditedSkinVarsForCurrentTab==='function') _syncEditedSkinVarsForCurrentTab();
   if(typeof _scheduleAppearanceAutosave==='function') _scheduleAppearanceAutosave();
 }
 
@@ -1280,10 +1300,12 @@ function _pickSkin(name){
   const appearance=_normalizeAppearance(localStorage.getItem('hermes-theme'),name);
   localStorage.setItem('hermes-theme',appearance.theme);
   localStorage.setItem('hermes-skin',appearance.skin);
+  _clearEditedSkinVars();
   _applyTheme(appearance.theme);
   _applySkin(appearance.skin);
   _syncThemePicker(appearance.theme);
   _syncSkinPicker(appearance.skin);
+  _renderSkinEditor(appearance.skin);
   const hidden=$('settingsSkin');
   if(hidden) hidden.value=appearance.skin;
   const themeHidden=$('settingsTheme');
@@ -1315,6 +1337,289 @@ function _applyFontSize(size){
   }
 }
 
+const _SKIN_EDITOR_FIELDS=[
+  {var:'bg',label:'Background',section:'Base palette'},
+  {var:'sidebar',label:'Sidebar',section:'Base palette'},
+  {var:'surface',label:'Surface',section:'Base palette'},
+  {var:'text',label:'Text',section:'Base palette'},
+  {var:'muted',label:'Muted text',section:'Base palette'},
+  {var:'border',label:'Border',section:'Base palette'},
+  {var:'border2',label:'Strong border',section:'Base palette'},
+  {var:'accent',label:'Accent',section:'Accent'},
+  {var:'accent-hover',label:'Accent hover',section:'Accent'},
+  {var:'accent-bg',label:'Accent bg',section:'Accent'},
+  {var:'accent-bg-strong',label:'Accent bg strong',section:'Accent'},
+  {var:'accent-text',label:'Accent text',section:'Accent'},
+  {var:'blue',label:'Blue',section:'Accent'},
+  {var:'gold',label:'Gold',section:'Accent'},
+  {var:'font-ui',label:'UI font stack',section:'Typography'},
+];
+
+let _skinEditorVariant='light';
+let _skinEditorDrafts={};
+
+function _skinEditorKey(skin,variant){
+  return `${String(skin||'default').toLowerCase()}::${variant==='dark'?'dark':'light'}`;
+}
+
+function _currentResolvedThemeMode(){
+  return document.documentElement.classList.contains('dark')?'dark':'light';
+}
+
+function _skinEditorVariantMatchesCurrentTheme(variant){
+  const cleanVariant=(variant||_skinEditorVariant)==='dark'?'dark':'light';
+  return cleanVariant===_currentResolvedThemeMode();
+}
+
+function _findSkinManifest(slug){
+  const key=String(slug||'default').toLowerCase();
+  return (_SKINS||[]).find(s=>String(s.slug||s.name||'default').toLowerCase()===key)||null;
+}
+
+function _skinEditorSections(){
+  const sections=[];
+  for(const field of _SKIN_EDITOR_FIELDS){
+    const name=field.section||'Other';
+    let section=sections.find(item=>item.name===name);
+    if(!section){
+      section={name,fields:[]};
+      sections.push(section);
+    }
+    section.fields.push(field);
+  }
+  return sections;
+}
+
+function _readEditableSkinVars(){
+  const styles=getComputedStyle(document.documentElement);
+  const out={};
+  for(const field of _SKIN_EDITOR_FIELDS){
+    out[field.var]=(styles.getPropertyValue(`--${field.var}`)||'').trim();
+  }
+  return out;
+}
+
+function _readSkinEditorInputs(){
+  const out={};
+  for(const field of _SKIN_EDITOR_FIELDS){
+    const input=document.querySelector(`[data-skin-var="${field.var}"]`);
+    out[field.var]=input?String(input.value||'').trim():'';
+  }
+  return out;
+}
+
+function _rememberSkinEditorVariant(){
+  const panel=$('skinEditorPanel');
+  if(!panel) return;
+  const skin=panel.dataset.skin||(($('settingsSkin')||{}).value)||'default';
+  _skinEditorDrafts[_skinEditorKey(skin,_skinEditorVariant)]=_readSkinEditorInputs();
+}
+
+function _skinEditorValuesFor(activeSkin,variant){
+  const cleanVariant=variant==='dark'?'dark':'light';
+  const key=_skinEditorKey(activeSkin,cleanVariant);
+  if(_skinEditorDrafts[key]) return {..._skinEditorDrafts[key]};
+  const manifest=_findSkinManifest(activeSkin);
+  const manifestValues=manifest&&manifest.variants&&manifest.variants[cleanVariant];
+  if(manifestValues) return {...manifestValues};
+  return _readEditableSkinVars();
+}
+
+function _clearEditedSkinInlineVars(){
+  for(const field of _SKIN_EDITOR_FIELDS){
+    document.documentElement.style.removeProperty(`--${field.var}`);
+  }
+}
+
+function _clearEditedSkinVars(){
+  _skinEditorDrafts={};
+  _clearEditedSkinInlineVars();
+}
+
+function _applyEditedSkinVars(){
+  _rememberSkinEditorVariant();
+  if(!_skinEditorVariantMatchesCurrentTheme()){
+    _clearEditedSkinInlineVars();
+    _syncThemeColorMeta();
+    return;
+  }
+  for(const field of _SKIN_EDITOR_FIELDS){
+    const input=document.querySelector(`[data-skin-var="${field.var}"]`);
+    if(!input) continue;
+    const value=String(input.value||'').trim();
+    if(value) document.documentElement.style.setProperty(`--${field.var}`,value);
+    else document.documentElement.style.removeProperty(`--${field.var}`);
+  }
+  _syncThemeColorMeta();
+}
+
+function _syncEditedSkinVarsForCurrentTab(){
+  if(_skinEditorVariantMatchesCurrentTheme()){
+    _applyEditedSkinVars();
+    return;
+  }
+  _clearEditedSkinInlineVars();
+  _syncThemeColorMeta();
+}
+
+function _syncSkinEditorTabs(){
+  document.querySelectorAll('[data-skin-editor-variant]').forEach(btn=>{
+    btn.classList.toggle('active',btn.dataset.skinEditorVariant===_skinEditorVariant);
+    btn.setAttribute('aria-selected',btn.dataset.skinEditorVariant===_skinEditorVariant?'true':'false');
+  });
+}
+
+function _skinEditorFieldSupportsColor(field){
+  return field && field.var!=='font-ui';
+}
+
+function _skinEditorColorInputValue(value){
+  const raw=String(value||'').trim();
+  const hex=raw.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if(hex){
+    if(hex[1].length===3){
+      return '#'+hex[1].split('').map(ch=>ch+ch).join('').toLowerCase();
+    }
+    return raw.toLowerCase();
+  }
+  const rgb=raw.match(/^rgba?\(\s*(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})/i);
+  if(rgb){
+    const parts=rgb.slice(1,4).map(part=>Math.max(0,Math.min(255,Number(part)||0)).toString(16).padStart(2,'0'));
+    return '#'+parts.join('');
+  }
+  return '#000000';
+}
+
+function _syncSkinEditorColorBubble(input,bubble,colorInput){
+  if(!input||!bubble) return;
+  const value=String(input.value||'').trim();
+  bubble.style.background=value||'transparent';
+  bubble.title=value?`Pick color for ${input.dataset.skinVar}: ${value}`:`Pick color for ${input.dataset.skinVar}`;
+  if(colorInput) colorInput.value=_skinEditorColorInputValue(value);
+}
+
+function _switchSkinEditorVariant(variant){
+  const next=variant==='dark'?'dark':'light';
+  if(next===_skinEditorVariant) return;
+  _rememberSkinEditorVariant();
+  _skinEditorVariant=next;
+  const panel=$('skinEditorPanel');
+  _renderSkinEditor(panel&&panel.dataset.skin?panel.dataset.skin:(($('settingsSkin')||{}).value||'default'));
+  _syncEditedSkinVarsForCurrentTab();
+}
+
+function _renderSkinEditor(activeSkin){
+  const panel=$('skinEditorPanel');
+  const fields=$('skinEditorFields');
+  if(!panel||!fields) return;
+  const skin=String(activeSkin||'default').toLowerCase();
+  panel.dataset.skin=skin;
+  fields.innerHTML='';
+  _syncSkinEditorTabs();
+  const values=_skinEditorValuesFor(skin,_skinEditorVariant);
+  for(const section of _skinEditorSections()){
+    const details=document.createElement('details');
+    details.className='skin-editor-section';
+    details.open=true;
+    const summary=document.createElement('summary');
+    summary.className='skin-editor-section-summary';
+    summary.textContent=section.name;
+    const sectionFields=document.createElement('div');
+    sectionFields.className='skin-editor-section-fields';
+    for(const field of section.fields){
+      const wrap=document.createElement('div');
+      wrap.className='skin-editor-field';
+      const label=document.createElement('label');
+      label.textContent=`--${field.var}`;
+      label.title=field.label;
+      const input=document.createElement('input');
+      input.type=field.type||'text';
+      input.value=values[field.var]||'';
+      input.dataset.skinVar=field.var;
+      input.placeholder=field.label;
+      input.addEventListener('input',()=>{
+        const bubble=wrap.querySelector('.skin-editor-color-bubble');
+        const colorInput=wrap.querySelector('.skin-editor-color-input');
+        _syncSkinEditorColorBubble(input,bubble,colorInput);
+        _applyEditedSkinVars();
+      });
+      wrap.appendChild(label);
+      const inputRow=document.createElement('div');
+      inputRow.className='skin-editor-input-row';
+      if(_skinEditorFieldSupportsColor(field)){
+        const bubble=document.createElement('button');
+        bubble.type='button';
+        bubble.className='skin-editor-color-bubble';
+        bubble.setAttribute('aria-label',`Pick color for --${field.var}`);
+        const colorInput=document.createElement('input');
+        colorInput.type='color';
+        colorInput.className='skin-editor-color-input';
+        colorInput.tabIndex=-1;
+        colorInput.addEventListener('input',()=>{
+          input.value=colorInput.value;
+          _syncSkinEditorColorBubble(input,bubble,colorInput);
+          _applyEditedSkinVars();
+        });
+        bubble.addEventListener('click',()=>{
+          colorInput.value=_skinEditorColorInputValue(input.value);
+          if(typeof colorInput.showPicker==='function') colorInput.showPicker();
+          else colorInput.click();
+        });
+        inputRow.appendChild(bubble);
+        inputRow.appendChild(colorInput);
+        _syncSkinEditorColorBubble(input,bubble,colorInput);
+      }
+      inputRow.appendChild(input);
+      wrap.appendChild(inputRow);
+      sectionFields.appendChild(wrap);
+    }
+    details.appendChild(summary);
+    details.appendChild(sectionFields);
+    fields.appendChild(details);
+  }
+}
+
+function _readEditableSkinVariants(){
+  _rememberSkinEditorVariant();
+  const current=(($('skinEditorPanel')||{}).dataset||{}).skin||(($('settingsSkin')||{}).value)||'default';
+  return {
+    light:_skinEditorValuesFor(current,'light'),
+    dark:_skinEditorValuesFor(current,'dark'),
+  };
+}
+
+function _skinNameToSlug(value){
+  return String(value||'').trim().toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,48);
+}
+
+function _escapeSkinCssValue(value){
+  return String(value||'').replace(/[;{}]/g,'').trim();
+}
+
+function _skinVarsToCss(vars){
+  return _SKIN_EDITOR_FIELDS.map(field=>`  --${field.var}:${_escapeSkinCssValue(vars[field.var])};`).join('\n');
+}
+
+async function _exportEditedSkin(){
+  const current=(($('settingsSkin')||{}).value||localStorage.getItem('hermes-skin')||'default').toLowerCase();
+  const name=await showPromptDialog({title:'Export skin',message:'Name for the exported skin manifest.',value:current==='default'?'Custom skin':current,placeholder:'My Skin',confirmLabel:'Export',selectAll:true});
+  if(!name) return;
+  const slug=_skinNameToSlug(name);
+  if(!slug){ showToast('Skin name is required'); return; }
+  const variants=_readEditableSkinVariants();
+  const safeName=String(name).trim().replace(/[*/]/g,'');
+  try{
+    const saved=await api('/api/skins/export',{method:'POST',body:JSON.stringify({name:safeName,slug,variants})});
+    await _loadSkins();
+    _buildSkinPicker(saved.slug||slug);
+    _pickSkin(saved.slug||slug);
+    showToast(`Skin file written: ${saved.path||slug}`);
+  }catch(e){
+    console.warn('[settings] skin export write failed',e);
+    showToast(e&&e.message?e.message:'Skin export failed');
+  }
+}
+
 function _pickFontSize(size){
   localStorage.setItem('hermes-font-size',size);
   _applyFontSize(size);
@@ -1337,18 +1642,37 @@ function _buildSkinPicker(activeSkin){
   if(!grid) return;
   grid.innerHTML='';
   for(const skin of _SKINS){
-    const key=skin.name.toLowerCase();
+    const key=(skin.slug||skin.name||'default').toLowerCase();
     const btn=document.createElement('button');
     btn.type='button';
     btn.className='skin-pick-btn';
     btn.dataset.skinVal=key;
     btn.style.cssText='border:1px solid var(--border2);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;background:none;transition:all .15s';
-    btn.onclick=()=>_pickSkin(skin.name);
-    const dots=skin.colors.map(c=>`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${c}"></span>`).join('');
-    btn.innerHTML=`<div style="display:flex;gap:3px;justify-content:center;margin-bottom:4px">${dots}</div><span style="font-size:11px;color:var(--text)">${skin.name}</span>`;
+    btn.onclick=()=>_pickSkin(key);
+    const dots=document.createElement('div');
+    dots.style.display='flex';
+    dots.style.gap='3px';
+    dots.style.justifyContent='center';
+    dots.style.marginBottom='4px';
+    for(const c of skin.colors){
+      const dot=document.createElement('span');
+      dot.style.display='inline-block';
+      dot.style.width='10px';
+      dot.style.height='10px';
+      dot.style.borderRadius='50%';
+      dot.style.background=c;
+      dots.appendChild(dot);
+    }
+    const label=document.createElement('span');
+    label.style.fontSize='11px';
+    label.style.color='var(--text)';
+    label.textContent=skin.name;
+    btn.appendChild(dots);
+    btn.appendChild(label);
     grid.appendChild(btn);
   }
   _syncSkinPicker((activeSkin||'default').toLowerCase());
+  _renderSkinEditor((activeSkin||'default').toLowerCase());
 }
 
 function applyBotName(){
@@ -1373,6 +1697,7 @@ function applyBotName(){
 }
 
 (async()=>{
+  await _loadSkins();
   // Load send key preference
   let _bootSettings={};
   try{
@@ -1395,6 +1720,7 @@ function applyBotName(){
     window._busyInputMode=(s.busy_input_mode||'queue');
     window._sessionEndlessScrollEnabled=!!s.session_endless_scroll;
     window._botName=s.bot_name||'Hermes';
+    window._userIcon=s.user_icon||'';
     if(s.default_model) window._defaultModel=s.default_model;
     window._sessionJumpButtonsEnabled=!!s.session_jump_buttons;
     // Reconcile appearance: prefer localStorage (what the user last saw) over
@@ -1458,6 +1784,7 @@ function applyBotName(){
     window._busyInputMode='queue';
     window._sessionEndlessScrollEnabled=false;
     window._botName='Hermes';
+    window._userIcon='';
     _bootSettings={check_for_updates:false};
     if(typeof setLocale==='function'){
       const _lang=typeof resolvePreferredLocale==='function'
@@ -1477,7 +1804,7 @@ function applyBotName(){
     api(_checkUrl).then(d=>{if(!_testUpdates)sessionStorage.setItem('hermes-update-checked','1');if((d.webui&&d.webui.behind>0)||(d.agent&&d.agent.behind>0))_showUpdateBanner(d);}).catch(()=>{});
   }
   // Fetch active profile
-  try{const p=await api('/api/profile/active');S.activeProfile=p.name||'default';}catch(e){S.activeProfile='default';}
+  try{const p=await api('/api/profile/active');S.activeProfile=p.name||'default';window._assistantIcon=p.assistant_icon||'';}catch(e){S.activeProfile='default';window._assistantIcon='';}
   // Update profile chip label immediately
   const profileLabel=$('profileChipLabel');
   if(profileLabel) profileLabel.textContent=S.activeProfile||'default';

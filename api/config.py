@@ -28,6 +28,7 @@ from urllib.parse import parse_qs, urlparse
 HOME = Path.home()
 # REPO_ROOT is the directory that contains this file's parent (api/ -> repo root)
 REPO_ROOT = Path(__file__).parent.parent.resolve()
+from api.skins import get_valid_skin_slugs
 
 # ── Network config (env-overridable) ─────────────────────────────────────────
 HOST = os.getenv("HERMES_WEBUI_HOST", "127.0.0.1")
@@ -3962,14 +3963,15 @@ _SETTINGS_DEFAULTS = {
     "check_for_updates": True,  # check if webui/agent repos are behind upstream
     "whats_new_summary_enabled": False,  # show an LLM-written What's New summary before diff links
     "theme": "dark",  # light | dark | system
-    "skin": "default",  # accent color skin: default | ares | mono | slate | poseidon | sisyphus | charizard
-    "font_size": "default",  # small | default | large | xlarge
+    "skin": "default",  # accent color skin: default | ares | mono | slate | poseidon | sisyphus | charizard | obryn
+    "font_size": "default",  # xs | small | default | large | xlarge
     "session_jump_buttons": False,  # show Start/End transcript jump pills
     "session_endless_scroll": False,  # auto-load older transcript pages while scrolling upward
     "language": "en",  # UI locale code; must match a key in static/i18n.js LOCALES
     "bot_name": os.getenv(
         "HERMES_WEBUI_BOT_NAME", "Hermes"
     ),  # display name for the assistant
+    "user_icon": "",  # optional user message icon: emoji/text or http(s)/data image URL
     "sound_enabled": False,  # play notification sound when assistant finishes
     "notifications_enabled": False,  # browser notification when tab is in background
     "show_thinking": True,  # show/hide thinking/reasoning blocks in chat view
@@ -3980,19 +3982,19 @@ _SETTINGS_DEFAULTS = {
     "busy_input_mode": "queue",  # behavior when sending while agent is running: queue | interrupt | steer
     "password_hash": None,  # PBKDF2-HMAC-SHA256 hash; None = auth disabled
 }
-_SETTINGS_LEGACY_DROP_KEYS = {"assistant_language", "bubble_layout", "default_model"}
-_SETTINGS_THEME_VALUES = {"light", "dark", "system"}
-_SETTINGS_SKIN_VALUES = {
-    "default",
-    "ares",
-    "mono",
-    "slate",
-    "poseidon",
-    "sisyphus",
-    "charizard",
-    "sienna",
-    "nous",
+_SETTINGS_LEGACY_DROP_KEYS = {
+    "assistant_language",
+    "bubble_layout",
+    "default_model",
+    "font_scale_step",
+    "font_size_chat",
+    "font_size_sidebar",
+    "font_size_composer",
+    "font_size_code",
+    "font_family",
 }
+_SETTINGS_THEME_VALUES = {"light", "dark", "system"}
+_SETTINGS_SKIN_VALUES = get_valid_skin_slugs(REPO_ROOT / "static")
 _SETTINGS_LEGACY_THEME_MAP = {
     # Legacy full themes now map onto the closest supported theme + accent skin pair.
     "slate": ("dark", "slate"),
@@ -4001,6 +4003,15 @@ _SETTINGS_LEGACY_THEME_MAP = {
     "nord": ("dark", "slate"),
     "oled": ("dark", "default"),
 }
+_SETTINGS_FONT_SIZE_ALIASES = {"xl": "xlarge"}
+
+
+def _normalize_font_size(value) -> str:
+    """Normalize persisted/requested font-size presets to CSS-supported values."""
+    raw = value.strip().lower() if isinstance(value, str) else ""
+    normalized = _SETTINGS_FONT_SIZE_ALIASES.get(raw, raw)
+    allowed = _SETTINGS_ENUM_VALUES.get("font_size", set())
+    return normalized if normalized in allowed else _SETTINGS_DEFAULTS["font_size"]
 
 
 def _normalize_appearance(theme, skin) -> tuple[str, str]:
@@ -4033,9 +4044,10 @@ def _normalize_appearance(theme, skin) -> tuple[str, str]:
     else:
         # Unknown themes used to exist; default to dark so upgrades stay visually stable.
         next_theme, legacy_skin = "dark", "default"
+    valid_skins = get_valid_skin_slugs(REPO_ROOT / "static")
     next_skin = (
         raw_skin
-        if raw_skin in _SETTINGS_SKIN_VALUES
+        if raw_skin in valid_skins
         else legacy_skin
     )
     return next_theme, next_skin
@@ -4069,6 +4081,7 @@ def load_settings() -> dict:
         stored.get("theme") if isinstance(stored, dict) else settings.get("theme"),
         stored.get("skin") if isinstance(stored, dict) else settings.get("skin"),
     )
+    settings["font_size"] = _normalize_font_size(settings.get("font_size"))
     settings["default_model"] = get_effective_default_model()
     return settings
 
@@ -4080,7 +4093,7 @@ _SETTINGS_ALLOWED_KEYS = set(_SETTINGS_DEFAULTS.keys()) - {
 _SETTINGS_ENUM_VALUES = {
     "send_key": {"enter", "ctrl+enter"},
     "sidebar_density": {"compact", "detailed"},
-    "font_size": {"small", "default", "large", "xlarge"},
+    "font_size": {"xs", "small", "default", "large", "xlarge", "xl"},
     "auto_title_refresh_every": {"0", "5", "10", "20"},
     "busy_input_mode": {"queue", "interrupt", "steer"},
 }
@@ -4103,6 +4116,28 @@ _SETTINGS_BOOL_KEYS = {
 }
 # Language codes are validated as short alphanumeric BCP-47-like tags (e.g. 'en', 'zh', 'fr')
 _SETTINGS_LANG_RE = __import__("re").compile(r"^[a-zA-Z]{2,10}(-[a-zA-Z0-9]{2,8})?$")
+def _sanitize_message_icon(value) -> str:
+    """Normalize user-supplied message icons for safe client rendering.
+
+    Icons are displayed as text/emoji by default. http(s) and data:image URLs are
+    rendered as images by the frontend; javascript: and other active schemes are
+    rejected here and checked again client-side.
+    """
+    if not isinstance(value, str):
+        return ""
+    icon = value.strip()
+    if not icon:
+        return ""
+    if len(icon) > 512:
+        icon = icon[:512]
+    lowered = icon.lower()
+    if ":" in icon and not (
+        lowered.startswith("http://")
+        or lowered.startswith("https://")
+        or lowered.startswith("data:image/")
+    ):
+        return ""
+    return icon
 
 
 def save_settings(settings: dict) -> dict:
@@ -4138,7 +4173,12 @@ def save_settings(settings: dict) -> dict:
                     skin_was_explicit = True
                 continue
             # Validate enum-constrained keys
-            if k in _SETTINGS_ENUM_VALUES and v not in _SETTINGS_ENUM_VALUES[k]:
+            if k == "font_size":
+                raw_font_size = v.strip().lower() if isinstance(v, str) else ""
+                v = _SETTINGS_FONT_SIZE_ALIASES.get(raw_font_size, raw_font_size)
+                if v not in _SETTINGS_ENUM_VALUES[k]:
+                    continue
+            elif k in _SETTINGS_ENUM_VALUES and v not in _SETTINGS_ENUM_VALUES[k]:
                 continue
             # Validate language codes (BCP-47-like: 'en', 'zh', 'fr', 'zh-CN')
             if k == "language" and (
@@ -4148,6 +4188,8 @@ def save_settings(settings: dict) -> dict:
             # Coerce bool keys
             if k in _SETTINGS_BOOL_KEYS:
                 v = bool(v)
+            if k == "user_icon":
+                v = _sanitize_message_icon(v)
             current[k] = v
     theme_value = pending_theme
     skin_value = pending_skin

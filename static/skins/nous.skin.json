@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "slug": "nous",
+  "name": "Nous Research",
+  "preview": [
+    "#4682B4",
+    "#3A6E9A",
+    "#2C5F88"
+  ],
+  "variants": {
+    "light": {
+      "bg": "#FFFFFF",
+      "sidebar": "#F5F5F5",
+      "surface": "#FFFFFF",
+      "border": "#D0D8E0",
+      "border2": "rgba(0,0,0,0.15)",
+      "text": "#1A2A3A",
+      "muted": "#6B7B8B",
+      "strong": "#0A1A2A",
+      "em": "#5C5344",
+      "accent": "#4682B4",
+      "accent-hover": "#3A6E9A",
+      "accent-bg": "rgba(70,130,180,0.06)",
+      "accent-bg-strong": "rgba(70,130,180,0.12)",
+      "accent-text": "#2C5F88",
+      "blue": "#4682B4",
+      "gold": "#4682B4",
+      "code-bg": "#F0F2F5",
+      "code-text": "#2C5F88",
+      "code-inline-bg": "rgba(70,130,180,0.08)",
+      "pre-text": "#1A2A3A",
+      "font-ui": "SF Mono,Roboto Mono,Courier New,monospace"
+    },
+    "dark": {
+      "bg": "#0A0E14",
+      "sidebar": "#0F1419",
+      "surface": "#111820",
+      "border": "#1E2A3A",
+      "border2": "rgba(255,255,255,0.14)",
+      "text": "#C8D6E5",
+      "muted": "#5A6A7A",
+      "strong": "#E2E8F0",
+      "em": "#5A6A7A",
+      "accent": "#4682B4",
+      "accent-hover": "#5A9AD0",
+      "accent-bg": "rgba(70,130,180,0.10)",
+      "accent-bg-strong": "rgba(70,130,180,0.20)",
+      "accent-text": "#7EB6E0",
+      "blue": "#4682B4",
+      "gold": "#4682B4",
+      "code-bg": "#111820",
+      "code-text": "#7EB6E0",
+      "code-inline-bg": "rgba(70,130,180,0.12)",
+      "pre-text": "#C8D6E5",
+      "font-ui": "SF Mono,Roboto Mono,Courier New,monospace"
+    }
+  }
+}

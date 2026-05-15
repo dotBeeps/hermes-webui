@@ -4498,10 +4498,26 @@ function _formatTurnTps(value){
 function isTpsDisplayEnabled(){
   return window._showTps===true;
 }
+function _messageIconHtml(role, icon, fallback){
+  const clean=String(icon||'').trim();
+  const label=role==='user'?'User icon':'Assistant icon';
+  if(clean){
+    const lowered=clean.toLowerCase();
+    const isImg=lowered.startsWith('http://')||lowered.startsWith('https://')||lowered.startsWith('data:image/');
+    if(isImg){
+      return `<span class="msg-avatar ${role}"><img class="msg-avatar-img" src="${esc(clean)}" alt="${esc(label)}" loading="lazy"></span>`;
+    }
+    if(!clean.includes(':')){
+      return `<span class="msg-avatar ${role} msg-avatar-text" aria-label="${esc(label)}">${esc(clean)}</span>`;
+    }
+  }
+  return `<span class="msg-avatar ${role} msg-avatar-text" aria-label="${esc(label)}">${esc(fallback||'')}</span>`;
+}
 function _assistantRoleHtml(tsTitle='', tpsText=''){
   const _bn=window._botName||'Hermes';
+  const iconHtml=_messageIconHtml('assistant', window._assistantIcon||'', _bn.charAt(0).toUpperCase());
   const tps=(isTpsDisplayEnabled()&&tpsText)?`<span class="msg-tps-inline" title="Tokens per second">${esc(tpsText)}</span>`:'';
-  return `<div class="msg-role assistant" ${tsTitle?`title="${esc(tsTitle)}"`:''}><div class="role-icon assistant">${esc(_bn.charAt(0).toUpperCase())}</div><span style="font-size:12px">${esc(_bn)}</span>${tps}</div>`;
+  return `<div class="msg-role assistant" ${tsTitle?`title="${esc(tsTitle)}"`:''}>${iconHtml}<span style="font-size:12px">${esc(_bn)}</span>${tps}</div>`;
 }
 function _setAssistantTurnTps(turn, tpsText=''){
   if(!turn) return;
@@ -5462,7 +5478,8 @@ function renderMessages(options){
       row.dataset.msgIdx=rawIdx;
       row.dataset.role='user';
       row.dataset.rawText=String(displayContent).trim();
-      row.innerHTML=`${filesHtml}<div class="msg-body">${bodyHtml}</div>${footHtml}`;
+      const userIconHtml=_messageIconHtml('user', window._userIcon||'', 'U');
+      row.innerHTML=`<div class="msg-role user"><span style="font-size:12px">You</span>${userIconHtml}</div>${filesHtml}<div class="msg-body">${bodyHtml}</div>${footHtml}`;
       inner.appendChild(row);
       userRows.set(rawIdx, row);
       continue;

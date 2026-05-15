@@ -866,6 +866,7 @@ def _clear_live_models_cache() -> None:
         _LIVE_MODELS_CACHE.clear()
 
 from api.config import (
+    REPO_ROOT,
     STATE_DIR,
     SESSION_DIR,
     DEFAULT_WORKSPACE,
@@ -916,6 +917,39 @@ from api.helpers import (
 from api.agent_health import build_agent_health_payload
 from api.request_diagnostics import RequestDiagnostics
 from api.system_health import build_system_health_payload
+from api.skins import build_skin_manifest, load_skin_registry, skin_slug
+
+STATIC_DIR = REPO_ROOT / "static"
+_SKIN_EXPORT_MAX_BYTES = 128 * 1024
+
+
+def _skin_export_slug(value: object) -> str:
+    return skin_slug(value)
+
+
+def _write_exported_skin_file(body: dict) -> dict:
+    """Write an exported skin manifest under static/skins/<slug>.skin.json."""
+    raw_name = str(body.get("name") or "").strip()
+    slug = _skin_export_slug(body.get("slug") or raw_name)
+    if not slug:
+        raise ValueError("skin name is required")
+    manifest = build_skin_manifest(raw_name or slug, slug, body.get("variants"))
+    encoded = json.dumps(manifest, ensure_ascii=False).encode("utf-8")
+    if len(encoded) > _SKIN_EXPORT_MAX_BYTES:
+        raise ValueError("skin manifest is too large")
+
+    export_dir = (STATIC_DIR / "skins").resolve()
+    static_root = STATIC_DIR.resolve()
+    export_dir.relative_to(static_root)
+    export_dir.mkdir(parents=True, exist_ok=True)
+    path = (export_dir / f"{slug}.skin.json").resolve()
+    path.relative_to(export_dir)
+    if path.exists():
+        raise FileExistsError("skin file already exists")
+
+    path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    response_path = Path(STATIC_DIR.name) / "skins" / path.name
+    return {"ok": True, "name": manifest["name"], "slug": slug, "path": response_path.as_posix()}
 
 
 def _kanban_unknown_endpoint(handler, parsed, method: str) -> bool:
@@ -3298,6 +3332,19 @@ def handle_get(handler, parsed) -> bool:
         refresh = (query.get("refresh", [""])[0] or "").strip().lower() in {"1", "true", "yes", "on"}
         return j(handler, get_provider_quota(provider_id, refresh=refresh))
 
+    if parsed.path == "/api/skins":
+        try:
+            registry = load_skin_registry(STATIC_DIR)
+        except Exception as exc:
+            logger.exception("Failed to load skin registry")
+            return bad(handler, f"failed to load skins: {_sanitize_error(exc)}", status=500)
+        return j(handler, {
+            "ok": True,
+            "skins": registry["skins"],
+            "css": registry["css"],
+            "warnings": registry.get("warnings", []),
+        })
+
     if parsed.path == "/api/settings":
         settings = load_settings()
         # Never expose the stored password hash to clients
@@ -4045,11 +4092,17 @@ def handle_get(handler, parsed) -> bool:
         )
 
     if parsed.path == "/api/profile/active":
-        from api.profiles import get_active_profile_name, get_active_hermes_home
+        from api.profiles import get_active_profile_name, get_active_hermes_home, list_profiles_api
 
+        active_name = get_active_profile_name()
+        assistant_icon = ""
+        for profile in list_profiles_api():
+            if profile.get("name") == active_name:
+                assistant_icon = profile.get("assistant_icon", "") or ""
+                break
         return j(
             handler,
-            {"name": get_active_profile_name(), "path": str(get_active_hermes_home())},
+            {"name": active_name, "path": str(get_active_hermes_home()), "assistant_icon": assistant_icon},
         )
 
     # ── Gateway Status (GET) ──
@@ -4998,6 +5051,26 @@ def handle_post(handler, parsed) -> bool:
         except RuntimeError as e:
             return bad(handler, str(e), 409)
 
+    if parsed.path == "/api/profile/display":
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return bad(handler, "name is required")
+        try:
+            from api.profiles import update_profile_display_api
+
+            return j(
+                handler,
+                update_profile_display_api(
+                    name,
+                    assistant_icon=body.get("assistant_icon", ""),
+                ),
+            )
+        except ValueError as e:
+            return bad(handler, str(e))
+        except Exception as e:
+            logger.exception("profile/display failed")
+            return bad(handler, str(e), 500)
+
     if parsed.path == "/api/profile/create":
         name = body.get("name", "").strip()
         if not name:
@@ -5050,6 +5123,17 @@ def handle_post(handler, parsed) -> bool:
             return bad(handler, _sanitize_error(e))
         except RuntimeError as e:
             return bad(handler, str(e), 409)
+
+    if parsed.path == "/api/skins/export":
+        try:
+            return j(handler, _write_exported_skin_file(body))
+        except FileExistsError as e:
+            return bad(handler, str(e), 409)
+        except ValueError as e:
+            return bad(handler, str(e), 400)
+        except Exception as e:
+            logger.exception("skin export failed")
+            return bad(handler, str(e), 500)
 
     # ── Settings (POST) ──
     if parsed.path == "/api/settings":

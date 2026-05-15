@@ -17,7 +17,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Hermes">
 <link rel="apple-touch-icon" sizes="512x512" href="static/apple-touch-icon.png">
-<script>(function(){var themes={light:1,dark:1,system:1},skins={default:1,ares:1,mono:1,slate:1,poseidon:1,sisyphus:1,charizard:1,sienna:1,nous:1},legacy={slate:['dark','slate'],solarized:['dark','poseidon'],monokai:['dark','sisyphus'],nord:['dark','slate'],oled:['dark','default']},t=(localStorage.getItem('hermes-theme')||'dark').toLowerCase(),s=(localStorage.getItem('hermes-skin')||'').toLowerCase(),m=legacy[t],theme=m?m[0]:(themes[t]?t:'dark'),skin=skins[s]?s:(m?m[1]:'default');localStorage.setItem('hermes-theme',theme);localStorage.setItem('hermes-skin',skin);if(theme==='system')theme=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(theme==='dark')document.documentElement.classList.add('dark');if(skin!=='default')document.documentElement.dataset.skin=skin;})()</script>
+<script>(function(){var themes={light:1,dark:1,system:1},legacy={slate:['dark','slate'],solarized:['dark','poseidon'],monokai:['dark','sisyphus'],nord:['dark','slate'],oled:['dark','default']},t=(localStorage.getItem('hermes-theme')||'dark').toLowerCase(),s=(localStorage.getItem('hermes-skin')||'').toLowerCase(),m=legacy[t],theme=m?m[0]:(themes[t]?t:'dark'),skin=/^[a-z0-9][a-z0-9-]{0,47}$/.test(s)?s:(m?m[1]:'default');localStorage.setItem('hermes-theme',theme);localStorage.setItem('hermes-skin',skin);if(theme==='system')theme=window.matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';if(theme==='dark')document.documentElement.classList.add('dark');if(skin!=='default')document.documentElement.dataset.skin=skin;})()</script>
 <script>(function(){var fs=localStorage.getItem('hermes-font-size');if(fs&&fs!=='default')document.documentElement.dataset.fontSize=fs;})()</script>
 <!-- theme-color: surfaces the active app chrome color to native status bars (Safari status bar, PWA, native WKWebView wrappers). Updated dynamically by boot.js when theme/skin changes. The light/dark default values match style.css :root --sidebar / :root.dark --sidebar. -->
 <meta name="theme-color" content="#FAF7F0" media="(prefers-color-scheme: light)">
@@ -858,33 +858,53 @@
               <div id="skinPickerGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:4px">
               </div>
               <input type="hidden" id="settingsSkin" value="default">
+              <div class="skin-editor-panel" id="skinEditorPanel">
+                <div class="skin-editor-head">
+                  <div>
+                    <div class="skin-editor-title">Skin config</div>
+                    <div class="skin-editor-meta">Edit the selected skin's live CSS variables, then export the palette.</div>
+                  </div>
+                  <button type="button" class="mini-btn" onclick="_exportEditedSkin()" data-i18n="settings_export_skin">Export skin</button>
+                </div>
+                <div class="skin-editor-tabs" id="skinEditorTabs" role="tablist" aria-label="Skin variant">
+                  <button type="button" class="skin-editor-tab active" data-skin-editor-variant="light" onclick="_switchSkinEditorVariant('light')">Light</button>
+                  <button type="button" class="skin-editor-tab" data-skin-editor-variant="dark" onclick="_switchSkinEditorVariant('dark')">Dark</button>
+                </div>
+                <div class="skin-editor-fields" id="skinEditorFields"></div>
+              </div>
             </div>
-                        <div class="settings-field">
-              <label data-i18n="settings_label_font_size">Font size</label>
-              <div id="fontSizePickerGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:8px;margin-top:4px">
+            <div class="settings-field">
+              <label data-i18n="settings_label_font_size">Text size</label>
+              <div id="fontSizePickerGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:4px">
+                <button type="button" data-font-size-val="xs" onclick="_pickFontSize('xs')" class="font-size-pick-btn" style="border:1px solid var(--border2);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;background:none;transition:all .15s">
+                  <div style="width:100%;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;justify-content:center">
+                    <span style="font-size:8px;font-weight:600;color:var(--muted)">Aa</span>
+                  </div>
+                  <span style="font-size:11px;font-weight:500;color:var(--text)">Tiny</span>
+                </button>
                 <button type="button" data-font-size-val="small" onclick="_pickFontSize('small')" class="font-size-pick-btn" style="border:1px solid var(--border2);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;background:none;transition:all .15s">
                   <div style="width:100%;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;justify-content:center">
                     <span style="font-size:10px;font-weight:600;color:var(--muted)">Aa</span>
                   </div>
-                  <span style="font-size:12px;font-weight:500;color:var(--text)" data-i18n="font_size_small">Small</span>
+                  <span style="font-size:11px;font-weight:500;color:var(--text)" data-i18n="font_size_small">Small</span>
                 </button>
                 <button type="button" data-font-size-val="default" onclick="_pickFontSize('default')" class="font-size-pick-btn" style="border:1px solid var(--border2);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;background:none;transition:all .15s">
                   <div style="width:100%;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;justify-content:center">
                     <span style="font-size:13px;font-weight:600;color:var(--muted)">Aa</span>
                   </div>
-                  <span style="font-size:12px;font-weight:500;color:var(--text)" data-i18n="font_size_default">Default</span>
+                  <span style="font-size:11px;font-weight:500;color:var(--text)" data-i18n="font_size_default">Default</span>
                 </button>
                 <button type="button" data-font-size-val="large" onclick="_pickFontSize('large')" class="font-size-pick-btn" style="border:1px solid var(--border2);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;background:none;transition:all .15s">
                   <div style="width:100%;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;justify-content:center">
                     <span style="font-size:17px;font-weight:600;color:var(--muted)">Aa</span>
                   </div>
-                  <span style="font-size:12px;font-weight:500;color:var(--text)" data-i18n="font_size_large">Large</span>
+                  <span style="font-size:11px;font-weight:500;color:var(--text)" data-i18n="font_size_large">Large</span>
                 </button>
                 <button type="button" data-font-size-val="xlarge" onclick="_pickFontSize('xlarge')" class="font-size-pick-btn" style="border:1px solid var(--border2);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;background:none;transition:all .15s">
                   <div style="width:100%;height:40px;border-radius:6px;background:var(--surface);border:1px solid var(--border);margin-bottom:6px;display:flex;align-items:center;justify-content:center">
-                    <span style="font-size:20px;font-weight:600;color:var(--muted)">Aa</span>
+                    <span style="font-size:21px;font-weight:600;color:var(--muted)">Aa</span>
                   </div>
-                  <span style="font-size:12px;font-weight:500;color:var(--text)" data-i18n="font_size_xlarge">Extra Large</span>
+                  <span style="font-size:11px;font-weight:500;color:var(--text)" data-i18n="font_size_xlarge">Extra Large</span>
                 </button>
               </div>
               <input type="hidden" id="settingsFontSize" value="default">
@@ -1085,6 +1105,11 @@
               <label for="settingsBotName" data-i18n="settings_label_bot_name">Assistant Name</label>
               <div style="font-size:11px;color:var(--muted);margin-bottom:6px" data-i18n="settings_desc_bot_name">Display name for the assistant throughout the UI. Defaults to Hermes.</div>
               <input type="text" id="settingsBotName" placeholder="Hermes" maxlength="64" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+            <div class="settings-field">
+              <label for="settingsUserIcon">User Icon</label>
+              <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Emoji/text or an http(s)/data image URL shown beside your messages.</div>
+              <input type="text" id="settingsUserIcon" placeholder="🐾" maxlength="512" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
             </div>
             <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">Save Settings</button>
             <div id="settingsPreferencesAutosaveStatus" class="settings-autosave-status" aria-live="polite"></div>
