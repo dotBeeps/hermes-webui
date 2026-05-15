@@ -95,6 +95,14 @@ def test_agent_brand_icon_autosave_does_not_revert_live_choice_from_response():
     assert "window._useAgentIconForBranding=!!(saved&&saved.use_agent_icon_for_branding);" not in panels
 
 
+def test_manual_save_uses_checked_agent_brand_icon_value_for_live_state():
+    """Manual Save Settings should preserve the checked branding toggle live."""
+    panels = read("static/panels.js")
+    assert "body.use_agent_icon_for_branding=!!($('settingsUseAgentIconForBranding')||{}).checked" in panels
+    assert "body&&body.use_agent_icon_for_branding!==undefined" in panels
+    assert "saved&&saved.use_agent_icon_for_branding!==undefined)?saved.use_agent_icon_for_branding:body.use_agent_icon_for_branding" not in panels
+
+
 def test_icon_css_supports_emoji_and_images():
     css = read("static/style.css")
     assert ".msg-avatar" in css

@@ -6283,7 +6283,7 @@ function _applySavedSettingsUi(saved, body, opts){
   window._sessionEndlessScrollEnabled=!!body.session_endless_scroll;
   window._botName=body.bot_name||'Hermes';
   window._userIcon=(saved&&saved.user_icon!==undefined)?(saved.user_icon||''):(body.user_icon||'');
-  window._useAgentIconForBranding=!!((saved&&saved.use_agent_icon_for_branding!==undefined)?saved.use_agent_icon_for_branding:body.use_agent_icon_for_branding);
+  window._useAgentIconForBranding=!!((body&&body.use_agent_icon_for_branding!==undefined)?body.use_agent_icon_for_branding:saved.use_agent_icon_for_branding);
   try{localStorage.setItem('hermes-use-agent-icon-for-branding',window._useAgentIconForBranding?'1':'0');}catch(_){}
   if(typeof applyBotName==='function') applyBotName();
   else if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
