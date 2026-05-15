@@ -4045,11 +4045,17 @@ def handle_get(handler, parsed) -> bool:
         )
 
     if parsed.path == "/api/profile/active":
-        from api.profiles import get_active_profile_name, get_active_hermes_home
+        from api.profiles import get_active_profile_name, get_active_hermes_home, list_profiles_api
 
+        active_name = get_active_profile_name()
+        assistant_icon = ""
+        for profile in list_profiles_api():
+            if profile.get("name") == active_name:
+                assistant_icon = profile.get("assistant_icon", "") or ""
+                break
         return j(
             handler,
-            {"name": get_active_profile_name(), "path": str(get_active_hermes_home())},
+            {"name": active_name, "path": str(get_active_hermes_home()), "assistant_icon": assistant_icon},
         )
 
     # ── Gateway Status (GET) ──
@@ -5050,6 +5056,26 @@ def handle_post(handler, parsed) -> bool:
             return bad(handler, _sanitize_error(e))
         except RuntimeError as e:
             return bad(handler, str(e), 409)
+
+    if parsed.path == "/api/profile/display":
+        name = str(body.get("name", "")).strip()
+        if not name:
+            return bad(handler, "name is required")
+        try:
+            from api.profiles import update_profile_display_api
+
+            return j(
+                handler,
+                update_profile_display_api(
+                    name,
+                    assistant_icon=body.get("assistant_icon", ""),
+                ),
+            )
+        except ValueError as e:
+            return bad(handler, str(e))
+        except Exception as e:
+            logger.exception("profile/display failed")
+            return bad(handler, str(e), 500)
 
     # ── Settings (POST) ──
     if parsed.path == "/api/settings":

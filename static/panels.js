@@ -4505,11 +4505,23 @@ function _renderProfileDetail(p, activeName){
   rows.push(`<div class="detail-row"><div class="detail-row-label">API key</div><div class="detail-row-value">${p.has_env ? esc(t('profile_api_keys_configured')) : '<span style="color:var(--muted)">Not configured</span>'}</div></div>`);
   if (typeof p.skill_count === 'number') rows.push(`<div class="detail-row"><div class="detail-row-label">Skills</div><div class="detail-row-value">${esc(t('profile_skill_count', p.skill_count))}</div></div>`);
   if (p.default_workspace) rows.push(`<div class="detail-row"><div class="detail-row-label">Default space</div><div class="detail-row-value"><code>${esc(p.default_workspace)}</code></div></div>`);
+  const assistantIconValue=esc(p.assistant_icon||'');
+  const displayRows = rows.join('');
   body.innerHTML = `
     <div class="main-view-content">
       <div class="detail-card">
         <div class="detail-card-title">Profile</div>
-        ${rows.join('')}
+        ${displayRows}
+      </div>
+      <div class="detail-card">
+        <div class="detail-card-title">Display</div>
+        <div class="detail-form-row">
+          <label for="profileAssistantIcon">Assistant Icon</label>
+          <input type="text" id="profileAssistantIcon" value="${assistantIconValue}" placeholder="🐉" maxlength="512" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false">
+          <div class="detail-form-hint">Emoji/text or an http(s)/data image URL shown beside this profile's assistant messages.</div>
+        </div>
+        <button type="button" class="sm-btn" onclick="saveProfileAssistantIcon()">Save assistant icon</button>
+        <div id="profileAssistantIconStatus" class="detail-form-hint" style="margin-top:8px"></div>
       </div>
     </div>`;
   body.style.display = '';
@@ -4564,6 +4576,32 @@ function _clearProfileDetail(){
 async function activateCurrentProfile(){
   if (!_currentProfileDetail) return;
   await switchToProfile(_currentProfileDetail.name);
+}
+
+async function saveProfileAssistantIcon(){
+  if (!_currentProfileDetail) return;
+  const input=$('profileAssistantIcon');
+  const status=$('profileAssistantIconStatus');
+  const assistant_icon=input?input.value:'';
+  if(status) status.textContent='Saving…';
+  try{
+    const saved=await api('/api/profile/display',{method:'POST',body:JSON.stringify({name:_currentProfileDetail.name,assistant_icon})});
+    _currentProfileDetail.assistant_icon=saved.assistant_icon||'';
+    if(_profilesCache&&Array.isArray(_profilesCache.profiles)){
+      const cached=_profilesCache.profiles.find(p=>p.name===_currentProfileDetail.name);
+      if(cached) cached.assistant_icon=_currentProfileDetail.assistant_icon;
+    }
+    if(_currentProfileDetail.name===(_profilesCache&&_profilesCache.active)||_currentProfileDetail.name===S.activeProfile){
+      window._assistantIcon=_currentProfileDetail.assistant_icon;
+      if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
+      if(typeof renderMessages==='function') renderMessages();
+    }
+    if(status) status.textContent='Saved';
+    showToast('Assistant icon saved');
+  }catch(e){
+    if(status) status.textContent=e.message||'Save failed';
+    showToast('Assistant icon save failed: '+(e.message||e));
+  }
 }
 
 async function deleteCurrentProfile(){
@@ -4670,6 +4708,8 @@ async function switchToProfile(name) {
   try {
     const data = await api('/api/profile/switch', { method: 'POST', body: JSON.stringify({ name }) });
     S.activeProfile = data.active || name;
+    const activeProfileData=(data.profiles||[]).find(p=>p&&p.name===S.activeProfile);
+    window._assistantIcon=(activeProfileData&&activeProfileData.assistant_icon)||'';
 
     // Update composer placeholder and title bar while the core profile-switch
     // state is still close to the profile API response.
@@ -5218,6 +5258,8 @@ function _preferencesPayloadFromUi(){
   if(busyInputModeSel) payload.busy_input_mode=busyInputModeSel.value;
   const botNameField=$('settingsBotName');
   if(botNameField) payload.bot_name=botNameField.value;
+  const userIconField=$('settingsUserIcon');
+  if(userIconField) payload.user_icon=userIconField.value;
   return payload;
 }
 
@@ -5265,6 +5307,17 @@ async function _autosavePreferencesSettings(payload){
     if(payload&&Object.prototype.hasOwnProperty.call(payload,'fade_text_effect')) window._fadeTextEffect=!!payload.fade_text_effect;
     if(payload&&payload.show_tps!==undefined){
       window._showTps=!!(saved&&saved.show_tps);
+      if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
+      if(typeof renderMessages==='function') renderMessages();
+    }
+    if(payload&&payload.bot_name!==undefined){
+      window._botName=(saved&&saved.bot_name)||payload.bot_name||'Hermes';
+      if(typeof applyBotName==='function') applyBotName();
+      if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
+      if(typeof renderMessages==='function') renderMessages();
+    }
+    if(payload&&payload.user_icon!==undefined){
+      window._userIcon=(saved&&saved.user_icon)||'';
       if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
       if(typeof renderMessages==='function') renderMessages();
     }
@@ -5526,6 +5579,17 @@ async function loadSettingsPanel(){
       botNameField.addEventListener('input',()=>{
         if(botNameTimer) clearTimeout(botNameTimer);
         botNameTimer=setTimeout(_schedulePreferencesAutosave,500);
+      },{once:false});
+    }
+    // User icon — debounced autosave (text input)
+    const userIconField=$('settingsUserIcon');
+    if(userIconField){
+      userIconField.value=settings.user_icon||'';
+      window._userIcon=settings.user_icon||'';
+      let userIconTimer=null;
+      userIconField.addEventListener('input',()=>{
+        if(userIconTimer) clearTimeout(userIconTimer);
+        userIconTimer=setTimeout(_schedulePreferencesAutosave,500);
       },{once:false});
     }
     // Password field: always blank (we don't send hash back)
@@ -6197,6 +6261,7 @@ function _applySavedSettingsUi(saved, body, opts){
   window._busyInputMode=body.busy_input_mode||'queue';
   window._sessionEndlessScrollEnabled=!!body.session_endless_scroll;
   window._botName=body.bot_name||'Hermes';
+  window._userIcon=(saved&&saved.user_icon!==undefined)?(saved.user_icon||''):(body.user_icon||'');
   if(typeof applyBotName==='function') applyBotName();
   if(typeof setLocale==='function') setLocale(language);
   if(typeof applyLocaleToDOM==='function') applyLocaleToDOM();
@@ -6313,6 +6378,7 @@ async function saveSettings(andClose){
   body.auto_title_refresh_every=(($('settingsAutoTitleRefresh')||{}).value||'0');
   const botName=(($('settingsBotName')||{}).value||'').trim();
   body.bot_name=botName||'Hermes';
+  body.user_icon=(($('settingsUserIcon')||{}).value||'').trim();
   // Password: only act if the field has content; blank = leave auth unchanged
   if(pw && pw.trim()){
     try{

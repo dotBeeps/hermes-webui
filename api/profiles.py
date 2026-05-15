@@ -961,6 +961,50 @@ def switch_profile(name: str, *, process_wide: bool = True) -> dict:
     }
 
 
+def _sanitize_profile_icon(value) -> str:
+    """Normalize assistant profile icon input for safe display."""
+    if not isinstance(value, str):
+        return ''
+    icon = value.strip()
+    if not icon:
+        return ''
+    if len(icon) > 512:
+        icon = icon[:512]
+    lowered = icon.lower()
+    if ':' in icon and not (
+        lowered.startswith('http://')
+        or lowered.startswith('https://')
+        or lowered.startswith('data:image/')
+    ):
+        return ''
+    return icon
+
+
+def _profile_display_file(profile_path: Path) -> Path:
+    return Path(profile_path).expanduser().resolve() / 'webui_state' / 'profile_display.json'
+
+
+def _load_profile_display(profile_path: Path) -> dict:
+    path = _profile_display_file(profile_path)
+    try:
+        data = json.loads(path.read_text(encoding='utf-8'))
+        if isinstance(data, dict):
+            return {'assistant_icon': _sanitize_profile_icon(data.get('assistant_icon', ''))}
+    except Exception:
+        logger.debug("Failed to load profile display metadata from %s", path)
+    return {'assistant_icon': ''}
+
+
+def _save_profile_display(profile_path: Path, updates: dict) -> dict:
+    current = _load_profile_display(profile_path)
+    if 'assistant_icon' in updates:
+        current['assistant_icon'] = _sanitize_profile_icon(updates.get('assistant_icon'))
+    path = _profile_display_file(profile_path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(current, ensure_ascii=False, indent=2), encoding='utf-8')
+    return current
+
+
 def list_profiles_api() -> list:
     """List all profiles with metadata, serialized for JSON response."""
     try:
@@ -973,6 +1017,7 @@ def list_profiles_api() -> list:
     active = get_active_profile_name()
     result = []
     for p in infos:
+        display = _load_profile_display(p.path)
         result.append({
             'name': p.name,
             'path': str(p.path),
@@ -983,6 +1028,7 @@ def list_profiles_api() -> list:
             'provider': p.provider,
             'has_env': p.has_env,
             'skill_count': p.skill_count,
+            'assistant_icon': display.get('assistant_icon', ''),
         })
     return result
 
@@ -999,6 +1045,7 @@ def _default_profile_dict() -> dict:
         'provider': None,
         'has_env': (_DEFAULT_HERMES_HOME / '.env').exists(),
         'skill_count': 0,
+        'assistant_icon': _load_profile_display(_DEFAULT_HERMES_HOME).get('assistant_icon', ''),
     }
 
 
@@ -1316,7 +1363,30 @@ def create_profile_api(name: str, clone_from: str = None,
         'provider': None,
         'has_env': (profile_path / '.env').exists(),
         'skill_count': 0,
+        'assistant_icon': _load_profile_display(profile_path).get('assistant_icon', ''),
     }
+
+
+def update_profile_display_api(name: str, assistant_icon: str = None) -> dict:
+    """Update WebUI-only display metadata for a profile."""
+    if not name:
+        raise ValueError("name is required")
+    if not _is_root_profile(name):
+        _validate_profile_name(name)
+    profile_path = None
+    for p in list_profiles_api():
+        if p.get('name') == name:
+            profile_path = Path(p.get('path') or '')
+            break
+    if profile_path is None:
+        if _is_root_profile(name):
+            profile_path = _DEFAULT_HERMES_HOME
+        else:
+            profile_path = _resolve_named_profile_home(name)
+    if not profile_path.exists():
+        raise ValueError(f"Profile '{name}' does not exist.")
+    display = _save_profile_display(profile_path, {'assistant_icon': assistant_icon})
+    return {'ok': True, 'name': name, **display}
 
 
 def delete_profile_api(name: str) -> dict:

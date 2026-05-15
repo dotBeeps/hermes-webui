@@ -3970,6 +3970,7 @@ _SETTINGS_DEFAULTS = {
     "bot_name": os.getenv(
         "HERMES_WEBUI_BOT_NAME", "Hermes"
     ),  # display name for the assistant
+    "user_icon": "",  # optional user message icon: emoji/text or http(s)/data image URL
     "sound_enabled": False,  # play notification sound when assistant finishes
     "notifications_enabled": False,  # browser notification when tab is in background
     "show_thinking": True,  # show/hide thinking/reasoning blocks in chat view
@@ -4105,6 +4106,30 @@ _SETTINGS_BOOL_KEYS = {
 _SETTINGS_LANG_RE = __import__("re").compile(r"^[a-zA-Z]{2,10}(-[a-zA-Z0-9]{2,8})?$")
 
 
+def _sanitize_message_icon(value) -> str:
+    """Normalize user-supplied message icons for safe client rendering.
+
+    Icons are displayed as text/emoji by default. http(s) and data:image URLs are
+    rendered as images by the frontend; javascript: and other active schemes are
+    rejected here and checked again client-side.
+    """
+    if not isinstance(value, str):
+        return ""
+    icon = value.strip()
+    if not icon:
+        return ""
+    if len(icon) > 512:
+        icon = icon[:512]
+    lowered = icon.lower()
+    if ":" in icon and not (
+        lowered.startswith("http://")
+        or lowered.startswith("https://")
+        or lowered.startswith("data:image/")
+    ):
+        return ""
+    return icon
+
+
 def save_settings(settings: dict) -> dict:
     """Save settings to disk. Returns the merged settings. Ignores unknown keys."""
     current = load_settings()
@@ -4148,6 +4173,8 @@ def save_settings(settings: dict) -> dict:
             # Coerce bool keys
             if k in _SETTINGS_BOOL_KEYS:
                 v = bool(v)
+            if k == "user_icon":
+                v = _sanitize_message_icon(v)
             current[k] = v
     theme_value = pending_theme
     skin_value = pending_skin
