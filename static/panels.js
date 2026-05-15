@@ -5320,7 +5320,7 @@ async function _autosavePreferencesSettings(payload){
       if(typeof renderMessages==='function') renderMessages();
     }
     if(payload&&payload.use_agent_icon_for_branding!==undefined){
-      window._useAgentIconForBranding=!!(saved&&saved.use_agent_icon_for_branding);
+      window._useAgentIconForBranding=!!payload.use_agent_icon_for_branding;
       try{localStorage.setItem('hermes-use-agent-icon-for-branding',window._useAgentIconForBranding?'1':'0');}catch(_){}
       if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
     }

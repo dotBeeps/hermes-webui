@@ -88,6 +88,13 @@ def test_agent_brand_icon_toggle_survives_fast_refresh():
     assert "brandIconCb.onchange=function()" in panels
 
 
+def test_agent_brand_icon_autosave_does_not_revert_live_choice_from_response():
+    """Autosave completion must not visibly flip the brand icon back."""
+    panels = read("static/panels.js")
+    assert "window._useAgentIconForBranding=!!payload.use_agent_icon_for_branding" in panels
+    assert "window._useAgentIconForBranding=!!(saved&&saved.use_agent_icon_for_branding);" not in panels
+
+
 def test_icon_css_supports_emoji_and_images():
     css = read("static/style.css")
     assert ".msg-avatar" in css
