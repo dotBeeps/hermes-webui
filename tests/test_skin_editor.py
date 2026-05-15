@@ -41,8 +41,12 @@ def test_skin_editor_builds_config_fields_from_css_variables():
     for css_var in ("accent", "accent-hover", "accent-bg", "accent-bg-strong", "bg", "sidebar", "surface", "text", "muted"):
         assert f"var:'{css_var}'" in BOOT_JS
 
-    for section in ("Base palette", "Accent", "Code", "Chrome", "Interaction", "Typography"):
+    for section in ("Base palette", "Accent", "Typography"):
         assert f"section:'{section}'" in BOOT_JS
+    for section in ("Code", "Chrome", "Interaction"):
+        assert f"section:'{section}'" not in BOOT_JS
+    for css_var in ("code-bg", "code-text", "topbar-bg", "main-bg", "input-bg", "hover-bg", "focus-ring", "focus-glow"):
+        assert f"var:'{css_var}'" not in BOOT_JS
     assert "_skinEditorSections" in BOOT_JS
     assert "document.createElement('details')" in BOOT_JS
     assert "document.createElement('summary')" in BOOT_JS

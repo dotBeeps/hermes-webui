@@ -1352,14 +1352,6 @@ const _SKIN_EDITOR_FIELDS=[
   {var:'accent-text',label:'Accent text',section:'Accent'},
   {var:'blue',label:'Blue',section:'Accent'},
   {var:'gold',label:'Gold',section:'Accent'},
-  {var:'code-bg',label:'Code bg',section:'Code'},
-  {var:'code-text',label:'Code text',section:'Code'},
-  {var:'topbar-bg',label:'Topbar bg',section:'Chrome'},
-  {var:'main-bg',label:'Main bg',section:'Chrome'},
-  {var:'input-bg',label:'Input bg',section:'Chrome'},
-  {var:'hover-bg',label:'Hover bg',section:'Interaction'},
-  {var:'focus-ring',label:'Focus ring',section:'Interaction'},
-  {var:'focus-glow',label:'Focus glow',section:'Interaction'},
   {var:'font-ui',label:'UI font stack',section:'Typography'},
 ];
 
