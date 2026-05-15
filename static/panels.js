@@ -5321,6 +5321,7 @@ async function _autosavePreferencesSettings(payload){
     }
     if(payload&&payload.use_agent_icon_for_branding!==undefined){
       window._useAgentIconForBranding=!!(saved&&saved.use_agent_icon_for_branding);
+      try{localStorage.setItem('hermes-use-agent-icon-for-branding',window._useAgentIconForBranding?'1':'0');}catch(_){}
       if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
     }
     _settingsPreferencesAutosaveRetryPayload=null;
@@ -5596,10 +5597,21 @@ async function loadSettingsPanel(){
     }
     const brandIconCb=$('settingsUseAgentIconForBranding');
     if(brandIconCb){
-      brandIconCb.checked=!!settings.use_agent_icon_for_branding;
+      let brandIconPref=!!settings.use_agent_icon_for_branding;
+      try{
+        const storedBrandIconPref=localStorage.getItem('hermes-use-agent-icon-for-branding');
+        if(storedBrandIconPref==='1') brandIconPref=true;
+        else if(storedBrandIconPref==='0') brandIconPref=false;
+      }catch(_){}
+      brandIconCb.checked=brandIconPref;
       window._useAgentIconForBranding=brandIconCb.checked;
       if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
-      brandIconCb.addEventListener('change',_schedulePreferencesAutosave,{once:false});
+      brandIconCb.onchange=function(){
+        localStorage.setItem('hermes-use-agent-icon-for-branding',this.checked?'1':'0');
+        window._useAgentIconForBranding=this.checked;
+        if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
+        _schedulePreferencesAutosave();
+      };
     }
     // Password field: always blank (we don't send hash back)
     const pwField=$('settingsPassword');
@@ -6272,6 +6284,7 @@ function _applySavedSettingsUi(saved, body, opts){
   window._botName=body.bot_name||'Hermes';
   window._userIcon=(saved&&saved.user_icon!==undefined)?(saved.user_icon||''):(body.user_icon||'');
   window._useAgentIconForBranding=!!((saved&&saved.use_agent_icon_for_branding!==undefined)?saved.use_agent_icon_for_branding:body.use_agent_icon_for_branding);
+  try{localStorage.setItem('hermes-use-agent-icon-for-branding',window._useAgentIconForBranding?'1':'0');}catch(_){}
   if(typeof applyBotName==='function') applyBotName();
   else if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
   if(typeof setLocale==='function') setLocale(language);

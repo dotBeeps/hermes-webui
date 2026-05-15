@@ -76,6 +76,18 @@ def test_brand_icon_renderer_targets_titlebar_and_empty_state():
     assert "empty-logo--profile" in css
 
 
+def test_agent_brand_icon_toggle_survives_fast_refresh():
+    """The branding toggle should survive even if refresh races autosave."""
+    boot = read("static/boot.js")
+    panels = read("static/panels.js")
+    assert "_AGENT_BRAND_ICON_STORAGE_KEY" in boot
+    assert "localStorage.getItem(_AGENT_BRAND_ICON_STORAGE_KEY)" in boot
+    assert "localStorage.setItem(_AGENT_BRAND_ICON_STORAGE_KEY" in boot
+    assert "api('/api/settings',{method:'POST',body:JSON.stringify({use_agent_icon_for_branding" in boot
+    assert "localStorage.setItem('hermes-use-agent-icon-for-branding'" in panels
+    assert "brandIconCb.onchange=function()" in panels
+
+
 def test_icon_css_supports_emoji_and_images():
     css = read("static/style.css")
     assert ".msg-avatar" in css

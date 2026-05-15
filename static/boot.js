@@ -1675,6 +1675,21 @@ function _buildSkinPicker(activeSkin){
   _renderSkinEditor((activeSkin||'default').toLowerCase());
 }
 
+const _AGENT_BRAND_ICON_STORAGE_KEY='hermes-use-agent-icon-for-branding';
+
+function _readStoredAgentBrandIconPreference(){
+  try{
+    const raw=localStorage.getItem(_AGENT_BRAND_ICON_STORAGE_KEY);
+    if(raw==='1') return true;
+    if(raw==='0') return false;
+  }catch(_){}
+  return null;
+}
+
+function _storeAgentBrandIconPreference(enabled){
+  try{localStorage.setItem(_AGENT_BRAND_ICON_STORAGE_KEY,enabled?'1':'0');}catch(_){}
+}
+
 function _activeAgentDisplayName(){
   if(S.activeProfile && S.activeProfile!=='default') return S.activeProfile.charAt(0).toUpperCase()+S.activeProfile.slice(1);
   return window._botName||'Hermes';
@@ -1757,7 +1772,11 @@ function applyBotName(){
     window._sessionEndlessScrollEnabled=!!s.session_endless_scroll;
     window._botName=s.bot_name||'Hermes';
     window._userIcon=s.user_icon||'';
-    window._useAgentIconForBranding=!!s.use_agent_icon_for_branding;
+    const storedAgentBrandIcon=_readStoredAgentBrandIconPreference();
+    window._useAgentIconForBranding=storedAgentBrandIcon===null?!!s.use_agent_icon_for_branding:storedAgentBrandIcon;
+    if(storedAgentBrandIcon!==null&&storedAgentBrandIcon!==!!s.use_agent_icon_for_branding){
+      api('/api/settings',{method:'POST',body:JSON.stringify({use_agent_icon_for_branding:storedAgentBrandIcon})}).catch(()=>{});
+    }
     if(s.default_model) window._defaultModel=s.default_model;
     window._sessionJumpButtonsEnabled=!!s.session_jump_buttons;
     // Reconcile appearance: prefer localStorage (what the user last saw) over
