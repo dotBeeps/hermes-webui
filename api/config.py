@@ -3972,6 +3972,7 @@ _SETTINGS_DEFAULTS = {
         "HERMES_WEBUI_BOT_NAME", "Hermes"
     ),  # display name for the assistant
     "user_icon": "",  # optional user message icon: emoji/text or http(s)/data image URL
+    "use_agent_icon_for_branding": False,  # replace Hermes caduceus brand marks with the active agent profile icon
     "sound_enabled": False,  # play notification sound when assistant finishes
     "notifications_enabled": False,  # browser notification when tab is in background
     "show_thinking": True,  # show/hide thinking/reasoning blocks in chat view
@@ -4113,6 +4114,7 @@ _SETTINGS_BOOL_KEYS = {
     "api_redact_enabled",
     "session_jump_buttons",
     "session_endless_scroll",
+    "use_agent_icon_for_branding",
 }
 # Language codes are validated as short alphanumeric BCP-47-like tags (e.g. 'en', 'zh', 'fr')
 _SETTINGS_LANG_RE = __import__("re").compile(r"^[a-zA-Z]{2,10}(-[a-zA-Z0-9]{2,8})?$")

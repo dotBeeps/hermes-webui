@@ -69,8 +69,8 @@
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
   <div class="app-titlebar-inner">
-    <span class="app-titlebar-icon" aria-hidden="true">
-      <svg viewBox="0 0 64 64" width="16" height="16" aria-hidden="true">
+    <span class="app-titlebar-icon" data-hermes-brand-icon="titlebar" aria-hidden="true">
+      <svg data-hermes-default-brand="1" viewBox="0 0 64 64" width="16" height="16" aria-hidden="true">
         <defs>
           <linearGradient id="app-titlebar-gold" x1="0%" y1="0%" x2="0%" y2="100%">
             <stop offset="0%" style="stop-color:#F5C542"/>
@@ -312,7 +312,7 @@
       <button id="scrollToBottomBtn" class="scroll-to-bottom-btn" style="display:none" onclick="scrollToBottom()" aria-label="Scroll to bottom" data-i18n-aria-label="session_jump_end_label" data-i18n-title="session_jump_end_label"><span aria-hidden="true">↓</span><span class="session-jump-btn__text" data-i18n="session_jump_end">End</span></button>
     <div class="messages" id="messages">
       <div class="empty-state" id="emptyState">
-        <div class="empty-logo"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="80" height="80" aria-label="Hermes caduceus">
+        <div class="empty-logo" data-hermes-brand-icon="empty"><svg data-hermes-default-brand="1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="80" height="80" aria-label="Hermes caduceus">
           <defs>
             <linearGradient id="hermes-gold" x1="0%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" style="stop-color:#F5C542;stop-opacity:1"/>
@@ -1110,6 +1110,13 @@
               <label for="settingsUserIcon">User Icon</label>
               <div style="font-size:11px;color:var(--muted);margin-bottom:6px">Emoji/text or an http(s)/data image URL shown beside your messages.</div>
               <input type="text" id="settingsUserIcon" placeholder="🐾" maxlength="512" style="width:100%;padding:8px;background:var(--code-bg);color:var(--text);border:1px solid var(--border2);border-radius:6px;font-size:13px">
+            </div>
+            <div class="settings-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="settingsUseAgentIconForBranding" style="width:15px;height:15px;accent-color:var(--accent)">
+                <span>Use agent icon for Hermes branding</span>
+              </label>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px">Replace the caduceus in the header bar and new conversation page with the active agent profile picture or emoji.</div>
             </div>
             <button class="sm-btn" onclick="saveSettings()" style="margin-top:12px;width:100%;padding:8px;font-weight:600" data-i18n="settings_save_btn">Save Settings</button>
             <div id="settingsPreferencesAutosaveStatus" class="settings-autosave-status" aria-live="polite"></div>

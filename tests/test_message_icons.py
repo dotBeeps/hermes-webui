@@ -50,6 +50,32 @@ def test_boot_and_autosave_keep_icons_live():
     assert "saveProfileAssistantIcon" in panels
 
 
+def test_settings_persists_agent_brand_icon_toggle():
+    src = read("api/config.py")
+    assert '"use_agent_icon_for_branding": False' in src
+    assert '"use_agent_icon_for_branding"' in src and "_SETTINGS_BOOL_KEYS" in src
+
+
+def test_settings_panel_has_agent_brand_icon_toggle():
+    html = read("static/index.html")
+    panels = read("static/panels.js")
+    assert 'id="settingsUseAgentIconForBranding"' in html
+    assert "payload.use_agent_icon_for_branding" in panels
+    assert "window._useAgentIconForBranding" in panels
+
+
+def test_brand_icon_renderer_targets_titlebar_and_empty_state():
+    html = read("static/index.html")
+    boot = read("static/boot.js")
+    css = read("static/style.css")
+    assert 'data-hermes-brand-icon="titlebar"' in html
+    assert 'data-hermes-brand-icon="empty"' in html
+    assert "function syncAgentBrandIcons" in boot
+    assert "_brandIconNode" in boot
+    assert "app-titlebar-icon--profile" in css
+    assert "empty-logo--profile" in css
+
+
 def test_icon_css_supports_emoji_and_images():
     css = read("static/style.css")
     assert ".msg-avatar" in css

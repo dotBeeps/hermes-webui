@@ -4595,6 +4595,7 @@ async function saveProfileAssistantIcon(){
       window._assistantIcon=_currentProfileDetail.assistant_icon;
       if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
       if(typeof renderMessages==='function') renderMessages();
+      if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
     }
     if(status) status.textContent='Saved';
     showToast('Assistant icon saved');
@@ -5261,6 +5262,8 @@ function _preferencesPayloadFromUi(){
   if(botNameField) payload.bot_name=botNameField.value;
   const userIconField=$('settingsUserIcon');
   if(userIconField) payload.user_icon=userIconField.value;
+  const brandIconCb=$('settingsUseAgentIconForBranding');
+  if(brandIconCb) payload.use_agent_icon_for_branding=brandIconCb.checked;
   return payload;
 }
 
@@ -5315,6 +5318,10 @@ async function _autosavePreferencesSettings(payload){
       window._userIcon=(saved&&saved.user_icon)||'';
       if(typeof clearMessageRenderCache==='function') clearMessageRenderCache();
       if(typeof renderMessages==='function') renderMessages();
+    }
+    if(payload&&payload.use_agent_icon_for_branding!==undefined){
+      window._useAgentIconForBranding=!!(saved&&saved.use_agent_icon_for_branding);
+      if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
     }
     _settingsPreferencesAutosaveRetryPayload=null;
     _setPreferencesAutosaveStatus('saved');
@@ -5586,6 +5593,13 @@ async function loadSettingsPanel(){
         if(userIconTimer) clearTimeout(userIconTimer);
         userIconTimer=setTimeout(_schedulePreferencesAutosave,500);
       },{once:false});
+    }
+    const brandIconCb=$('settingsUseAgentIconForBranding');
+    if(brandIconCb){
+      brandIconCb.checked=!!settings.use_agent_icon_for_branding;
+      window._useAgentIconForBranding=brandIconCb.checked;
+      if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
+      brandIconCb.addEventListener('change',_schedulePreferencesAutosave,{once:false});
     }
     // Password field: always blank (we don't send hash back)
     const pwField=$('settingsPassword');
@@ -6257,7 +6271,9 @@ function _applySavedSettingsUi(saved, body, opts){
   window._sessionEndlessScrollEnabled=!!body.session_endless_scroll;
   window._botName=body.bot_name||'Hermes';
   window._userIcon=(saved&&saved.user_icon!==undefined)?(saved.user_icon||''):(body.user_icon||'');
+  window._useAgentIconForBranding=!!((saved&&saved.use_agent_icon_for_branding!==undefined)?saved.use_agent_icon_for_branding:body.use_agent_icon_for_branding);
   if(typeof applyBotName==='function') applyBotName();
+  else if(typeof syncAgentBrandIcons==='function') syncAgentBrandIcons();
   if(typeof setLocale==='function') setLocale(language);
   if(typeof applyLocaleToDOM==='function') applyLocaleToDOM();
   if(typeof startGatewaySSE==='function'){
@@ -6374,6 +6390,7 @@ async function saveSettings(andClose){
   const botName=(($('settingsBotName')||{}).value||'').trim();
   body.bot_name=botName||'Hermes';
   body.user_icon=(($('settingsUserIcon')||{}).value||'').trim();
+  body.use_agent_icon_for_branding=!!($('settingsUseAgentIconForBranding')||{}).checked;
   // Password: only act if the field has content; blank = leave auth unchanged
   if(pw && pw.trim()){
     try{

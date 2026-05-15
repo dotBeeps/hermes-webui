@@ -1675,16 +1675,51 @@ function _buildSkinPicker(activeSkin){
   _renderSkinEditor((activeSkin||'default').toLowerCase());
 }
 
-function applyBotName(){
-  // Prefer profile name over global bot_name for personalised placeholder.
-  // If activeProfile is set and not 'default', use it (capitalised).
-  // Falls back to window._botName (global bot_name setting) or 'Hermes'.
-  let name;
-  if(S.activeProfile && S.activeProfile!=='default'){
-    name=S.activeProfile.charAt(0).toUpperCase()+S.activeProfile.slice(1);
-  }else{
-    name=window._botName||'Hermes';
+function _activeAgentDisplayName(){
+  if(S.activeProfile && S.activeProfile!=='default') return S.activeProfile.charAt(0).toUpperCase()+S.activeProfile.slice(1);
+  return window._botName||'Hermes';
+}
+
+function _brandIconNode(icon, fallback, label){
+  const clean=String(icon||'').trim();
+  const textFallback=String(fallback||'H').trim()||'H';
+  const lowered=clean.toLowerCase();
+  const isImg=clean&&(lowered.startsWith('http://')||lowered.startsWith('https://')||lowered.startsWith('data:image/'));
+  if(isImg){
+    const img=document.createElement('img');
+    img.className='brand-profile-icon-img';
+    img.src=clean;
+    img.alt=label||'Agent icon';
+    img.loading='lazy';
+    return img;
   }
+  const span=document.createElement('span');
+  span.className='brand-profile-icon-text';
+  span.setAttribute('aria-label',label||'Agent icon');
+  span.textContent=(clean&&!clean.includes(':'))?clean:textFallback;
+  return span;
+}
+
+function syncAgentBrandIcons(){
+  const enabled=window._useAgentIconForBranding===true;
+  const name=_activeAgentDisplayName();
+  const icon=window._assistantIcon||'';
+  const fallback=name.charAt(0).toUpperCase();
+  document.querySelectorAll('[data-hermes-brand-icon]').forEach(el=>{
+    if(!el.dataset.defaultBrandHtml) el.dataset.defaultBrandHtml=el.innerHTML;
+    const slot=el.getAttribute('data-hermes-brand-icon')||'';
+    el.classList.toggle('app-titlebar-icon--profile', enabled&&slot==='titlebar');
+    el.classList.toggle('empty-logo--profile', enabled&&slot==='empty');
+    if(!enabled){
+      el.innerHTML=el.dataset.defaultBrandHtml||'';
+      return;
+    }
+    el.replaceChildren(_brandIconNode(icon, fallback, name+' icon'));
+  });
+}
+
+function applyBotName(){
+  const name=_activeAgentDisplayName();
   document.title=name;
   const sidebarH1=document.querySelector('.sidebar-header h1');
   if(sidebarH1) sidebarH1.textContent=name;
@@ -1694,6 +1729,7 @@ function applyBotName(){
   if(topbarTitle && (!S.session)) topbarTitle.textContent=name;
   const msg=$('msg');
   if(msg) msg.placeholder='Message '+name+'\u2026';
+  syncAgentBrandIcons();
 }
 
 (async()=>{
@@ -1721,6 +1757,7 @@ function applyBotName(){
     window._sessionEndlessScrollEnabled=!!s.session_endless_scroll;
     window._botName=s.bot_name||'Hermes';
     window._userIcon=s.user_icon||'';
+    window._useAgentIconForBranding=!!s.use_agent_icon_for_branding;
     if(s.default_model) window._defaultModel=s.default_model;
     window._sessionJumpButtonsEnabled=!!s.session_jump_buttons;
     // Reconcile appearance: prefer localStorage (what the user last saw) over
@@ -1785,6 +1822,7 @@ function applyBotName(){
     window._sessionEndlessScrollEnabled=false;
     window._botName='Hermes';
     window._userIcon='';
+    window._useAgentIconForBranding=false;
     _bootSettings={check_for_updates:false};
     if(typeof setLocale==='function'){
       const _lang=typeof resolvePreferredLocale==='function'
@@ -1805,6 +1843,7 @@ function applyBotName(){
   }
   // Fetch active profile
   try{const p=await api('/api/profile/active');S.activeProfile=p.name||'default';window._assistantIcon=p.assistant_icon||'';}catch(e){S.activeProfile='default';window._assistantIcon='';}
+  applyBotName();
   // Update profile chip label immediately
   const profileLabel=$('profileChipLabel');
   if(profileLabel) profileLabel.textContent=S.activeProfile||'default';
