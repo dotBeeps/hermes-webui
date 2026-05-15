@@ -201,7 +201,7 @@ def _classify_provider_error(err_str: str, exc=None, *, silent_failure: bool = F
         return {
             'label': 'Task cancelled',
             'type': 'cancelled',
-            'hint': 'The run was cancelled by the user before Skyly finished. No provider failure occurred.',
+            'hint': 'The run was cancelled by the user before the agent finished. No provider failure occurred.',
         }
     if _is_interrupted:
         return {
@@ -318,7 +318,7 @@ def _cancelled_turn_content(message: str = 'Task cancelled.') -> str:
         _message += '.'
     return (
         f"**Task cancelled:** {_message}\n\n"
-        "*The run was cancelled by the user before Skyly finished. No provider failure occurred.*"
+        "*The run was cancelled by the user before the agent finished. No provider failure occurred.*"
     )
 
 
