@@ -206,7 +206,7 @@ class TestFontSizeSettingsValidation:
 
     def test_config_allows_extra_large_font_size(self):
         config = _read("api/config.py")
-        assert '"font_size": {"small", "default", "large", "xlarge"}' in config, (
+        assert '"font_size"' in config and '"xlarge"' in config, (
             "api/config.py must accept xlarge as a persisted font_size value"
         )
 

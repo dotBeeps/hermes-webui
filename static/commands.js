@@ -611,7 +611,7 @@ async function cmdUsage(){
 
 async function cmdTheme(args){
   const themes=['system','dark','light'];
-  const skins=(_SKINS||[]).map(s=>s.name.toLowerCase());
+  const skins=(_SKINS||[]).map(s=>String(s.slug||s.name||'').toLowerCase());
   const legacyThemes=Object.keys(_LEGACY_THEME_MAP||{});
   const val=(args||'').toLowerCase().trim();
   // Check if it's a theme
@@ -631,6 +631,11 @@ async function cmdTheme(args){
     if(skinSel)skinSel.value=appearance.skin;
     if(typeof _syncThemePicker==='function') _syncThemePicker(appearance.theme);
     if(typeof _syncSkinPicker==='function') _syncSkinPicker(appearance.skin);
+    if(legacyThemes.includes(val)){
+      if(typeof _clearEditedSkinVars==='function') _clearEditedSkinVars();
+      if(typeof _renderSkinEditor==='function') _renderSkinEditor(appearance.skin);
+    }
+    if(typeof _syncEditedSkinVarsForCurrentTab==='function') _syncEditedSkinVarsForCurrentTab();
     showToast(t('theme_set')+appearance.theme+(legacyThemes.includes(val)?` + ${appearance.skin}`:''));
     return;
   }
@@ -648,6 +653,9 @@ async function cmdTheme(args){
     if(themeSel)themeSel.value=appearance.theme;
     if(typeof _syncThemePicker==='function') _syncThemePicker(appearance.theme);
     if(typeof _syncSkinPicker==='function') _syncSkinPicker(appearance.skin);
+    if(typeof _clearEditedSkinVars==='function') _clearEditedSkinVars();
+    if(typeof _renderSkinEditor==='function') _renderSkinEditor(appearance.skin);
+    if(typeof _syncEditedSkinVarsForCurrentTab==='function') _syncEditedSkinVarsForCurrentTab();
     showToast(t('theme_set')+appearance.skin);
     return;
   }

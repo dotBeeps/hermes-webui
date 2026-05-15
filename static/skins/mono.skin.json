@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "slug": "mono",
+  "name": "Mono",
+  "preview": [
+    "#CCCCCC",
+    "#999999",
+    "#666666"
+  ],
+  "variants": {
+    "light": {
+      "bg": "#FEFCF7",
+      "sidebar": "#FAF7F0",
+      "surface": "#F3EEE3",
+      "border": "#E0D8C8",
+      "border2": "rgba(0,0,0,0.15)",
+      "text": "#1A1610",
+      "muted": "#5C5344",
+      "strong": "#0F0D08",
+      "em": "#5C5344",
+      "accent": "#666666",
+      "accent-hover": "#555555",
+      "accent-bg": "rgba(102,102,102,0.08)",
+      "accent-bg-strong": "rgba(102,102,102,0.15)",
+      "accent-text": "#555555",
+      "blue": "#0288A8",
+      "gold": "#8B6508",
+      "font-ui": "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Inter,system-ui,sans-serif"
+    },
+    "dark": {
+      "bg": "#0D0D1A",
+      "sidebar": "#141425",
+      "surface": "#1A1A2E",
+      "border": "#2A2A45",
+      "border2": "rgba(255,255,255,0.14)",
+      "text": "#FFF8DC",
+      "muted": "#C0C0C0",
+      "strong": "#FFFFFF",
+      "em": "#C0C0C0",
+      "accent": "#CCCCCC",
+      "accent-hover": "#999999",
+      "accent-bg": "rgba(204,204,204,0.08)",
+      "accent-bg-strong": "rgba(204,204,204,0.15)",
+      "accent-text": "#CCCCCC",
+      "blue": "#4DD0E1",
+      "gold": "#FFBF00",
+      "font-ui": "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Inter,system-ui,sans-serif"
+    }
+  }
+}

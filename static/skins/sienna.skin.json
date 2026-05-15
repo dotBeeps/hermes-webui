@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "slug": "sienna",
+  "name": "Sienna",
+  "preview": [
+    "#D97757",
+    "#C06A49",
+    "#9A523A"
+  ],
+  "variants": {
+    "light": {
+      "bg": "#FAF9F5",
+      "sidebar": "#F0EEE6",
+      "surface": "#FFFFFF",
+      "border": "#E7E4DB",
+      "border2": "#D7D3C7",
+      "text": "#1F1E1C",
+      "muted": "#6B6A63",
+      "strong": "#141311",
+      "em": "#3E3D39",
+      "accent": "#D97757",
+      "accent-hover": "#C06A49",
+      "accent-bg": "rgba(217,119,87,0.10)",
+      "accent-bg-strong": "rgba(217,119,87,0.18)",
+      "accent-text": "#9A523A",
+      "blue": "#0288A8",
+      "gold": "#8B6508",
+      "font-ui": "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Inter,system-ui,sans-serif"
+    },
+    "dark": {
+      "bg": "#1F1E1C",
+      "sidebar": "#262522",
+      "surface": "#2C2B28",
+      "border": "#3A3935",
+      "border2": "#4A4843",
+      "text": "#EDEBE3",
+      "muted": "#A3A197",
+      "strong": "#F7F5ED",
+      "em": "#C9C6BC",
+      "accent": "#D97757",
+      "accent-hover": "#C06A49",
+      "accent-bg": "rgba(217,119,87,0.13)",
+      "accent-bg-strong": "rgba(217,119,87,0.24)",
+      "accent-text": "#F0B49C",
+      "blue": "#4DD0E1",
+      "gold": "#FFBF00",
+      "font-ui": "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Inter,system-ui,sans-serif"
+    }
+  }
+}

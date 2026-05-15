@@ -111,6 +111,14 @@
 
 ### Added
 
+- Settings → Appearance skins now load from validated `static/skins/*.skin.json`
+  manifests instead of hardcoded picker/backend allowlists. The registry drives
+  the skin picker, `/theme <slug>`, settings normalization, generated CSS, and
+  browser export now writes `<slug>.skin.json` manifests for future theming
+  expansion. The browser skin editor includes separate Light/Dark variant tabs
+  with collapsible variable sections so exported manifests keep distinct token
+  maps for both modes.
+
 - **PR #2238** by @franksong2702 (fixes #2231) — Phone-width layouts (≤640px) keep the hamburger drawer entry pattern, but the drawer now lays out `.sidebar-nav` as a vertical 52px strip with stable 44px touch targets and a left-edge selection indicator instead of a cramped horizontal icon row. PWA chrome alignment: `theme-color` meta tag now follows the app chrome `--sidebar` color instead of the chat background `--bg`, so iOS Safari / PWA status bars visibly match the titlebar/sidebar. Phone composer also reserves the bottom safe area so it is not clipped by rounded corners or the home indicator. Before/after screenshots shipped under `docs/pr-media/2231/`.
 
 ### Docs

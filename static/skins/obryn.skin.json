@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "slug": "obryn",
+  "name": "Obryn",
+  "preview": [
+    "#8B5CF6",
+    "#38BDF8",
+    "#D4AF37"
+  ],
+  "variants": {
+    "light": {
+      "bg": "#F7F5FF",
+      "sidebar": "#ECE8FA",
+      "surface": "#FFFFFF",
+      "border": "#DCD4F3",
+      "border2": "#C8BCE8",
+      "text": "#191525",
+      "muted": "#665E7A",
+      "strong": "#0E0B16",
+      "em": "#433A5A",
+      "accent": "#6D4DDB",
+      "accent-hover": "#583DC4",
+      "accent-bg": "rgba(109,77,219,0.10)",
+      "accent-bg-strong": "rgba(109,77,219,0.20)",
+      "accent-text": "#4F3AA3",
+      "blue": "#38BDF8",
+      "gold": "#B08A2A",
+      "font-ui": "RecMonoLinear Nerd Font,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Inter,system-ui,sans-serif"
+    },
+    "dark": {
+      "bg": "#07070D",
+      "sidebar": "#0D0D17",
+      "surface": "#12121F",
+      "border": "#26243A",
+      "border2": "#3A3658",
+      "text": "#EEEAFB",
+      "muted": "#A8A0C2",
+      "strong": "#FFFFFF",
+      "em": "#CBC4E6",
+      "accent": "#A78BFA",
+      "accent-hover": "#8B5CF6",
+      "accent-bg": "rgba(167,139,250,0.12)",
+      "accent-bg-strong": "rgba(167,139,250,0.24)",
+      "accent-text": "#C4B5FD",
+      "blue": "#38BDF8",
+      "gold": "#D4AF37",
+      "font-ui": "RecMonoLinear Nerd Font,-apple-system,BlinkMacSystemFont,\"Segoe UI\",Inter,system-ui,sans-serif"
+    }
+  }
+}

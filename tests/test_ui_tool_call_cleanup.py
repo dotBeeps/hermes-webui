@@ -4,6 +4,7 @@ These tests intentionally follow the repo's existing pytest style: read static
 source files, isolate the relevant function/rule, and assert implementation
 invariants before changing the UI.
 """
+import json
 import pathlib
 import re
 
@@ -292,8 +293,8 @@ class TestToolCardDesignTokens:
             assert token in css_min, f"Base light palette token missing: {token}"
 
     def test_default_skin_preview_stays_upstream(self):
-        boot_min = re.sub(r"\s+", "", BOOT_JS)
-        assert "{name:'Default',colors:['#FFD700','#FFBF00','#CD7F32']}" in boot_min, (
+        manifest = json.loads((REPO / "static" / "skins" / "default.skin.json").read_text(encoding="utf-8"))
+        assert manifest["preview"] == ["#FFD700", "#FFBF00", "#CD7F32"], (
             "The Default skin swatch should stay aligned with the upstream gold base."
         )
 
